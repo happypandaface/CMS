@@ -319,11 +319,17 @@ class Template
 		JsonObjectBuilder objBuild = Json.createObjectBuilder();
 		return objBuild;
 	}
+	
+	public JPanel buildPanel()
+	{
+		
+	}
 }
 
 class TemplateHolder
 {
 	List<Template> templates;
+	String currentTemplate;
 	
 	public TemplateHolder()
 	{
@@ -333,6 +339,24 @@ class TemplateHolder
 	public void add(Template t)
 	{
 		templates.add(t);
+	}
+	
+	public void setTemplate(String s)
+	{
+		currentTemplate = s;
+	}
+	
+	public Template getCurrentTemplate()
+	{
+		if (currentTemplate == null)
+			return null;
+		Iterator<Template> tmplIter = templates.iterator();
+		while (tmplIter.hasNext())
+		{
+			Template t = tmplIter.next();
+			if (t.name.equals(currentTemplate)) 
+				return t;
+		}
 	}
 }
 
