@@ -322,7 +322,7 @@ class Template
 	
 	public JPanel buildPanel()
 	{
-		
+		return null;
 	}
 }
 
@@ -357,6 +357,7 @@ class TemplateHolder
 			if (t.name.equals(currentTemplate)) 
 				return t;
 		}
+		return null;
 	}
 }
 
