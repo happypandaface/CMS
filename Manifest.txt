@@ -1,0 +1,2 @@
+Class-Path: commons-net-3.3.jar;javax.json-1.0.4.jar;commons-io-2.4.jar;.;
+Main-Class: Example

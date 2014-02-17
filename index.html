@@ -1,0 +1,32 @@
+<script src="jquery-1.11.0.js"></script>
+<script>
+$(function(){
+	$.ajax({
+		url: "registry.txt"
+	}).done(function(e) {
+		window.cmsReg = $.parseJSON(e);
+		console.log(window.cmsReg);
+		for (var i = 0; i < window.cmsReg.items.length; ++i)
+		{
+			var item = window.cmsReg.items[i];
+			var str = 
+				"<h3>"+item.name+"</h3><br/>"
+				+"<p>"+item.description+"</p><br/>"
+			for (var c = 0; c < item.images.length; ++c)
+			{
+				var imgStr = item.images[c];
+				console.log(imgStr);
+				str += "<img src=\"CMSimages/"+imgStr+"\"></img>";
+			}
+			$('div#content').append(str+"<br/>");
+			
+		}
+		//$('div#content').empty();
+	});
+});
+</script>
+<body>
+<div id=content>
+yo
+</div>
+</body>
