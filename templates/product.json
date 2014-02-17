@@ -1,0 +1,6 @@
+{"name":"product",
+"features":
+[
+	{"type":"title_desc", "names":["name", "description"]},
+	{"type":"imageUpload", "name":"images"}
+]}

@@ -1,7 +1,11 @@
 
 /**
+ * This started as:
  * A simple example showing how to use {@link FileDrop}
  * @author Robert Harder, rob@iharder.net
+ * but I've added like... a lot of liness...
+ * scottgriffy@gmail.com
+ * but credit goes to that guy for the filedrop code.
  */
  
 import javax.swing.JFrame;
@@ -67,6 +71,7 @@ import javax.json.JsonArray;
 class RegistryData
 {
 	List<ItemData> items;
+	String str;
 	
 	public RegistryData()
 	{
@@ -137,10 +142,25 @@ class RegistryData
 		objBuild.add("items", arrBuild);
 		return objBuild;
 	}
+	
+	public List<ItemData> getOfType(String typ)
+	{
+		List<ItemData> itemsOfType = new ArrayList<ItemData>();
+		Iterator<ItemData> itemIter = items.iterator();
+		while (itemIter.hasNext())
+		{
+			ItemData item = itemIter.next();
+			System.out.println(item.type);
+			if (item.type.equals(typ))
+				itemsOfType.add(item);
+		}
+		return itemsOfType;
+	}
 }
 
 class ItemData
 {
+	String type;
 	String name;
 	String description;
 	List<String> images;
@@ -148,14 +168,16 @@ class ItemData
 	
 	public ItemData()
 	{
+		type = "";
 		name = "";
 		description = "";
 		images = new ArrayList<String>();
 		button = "";
 	}
 	
-	public ItemData(String nme, String desc, List<String> imgs, String butt)
+	public ItemData(String typ, String nme, String desc, List<String> imgs, String butt)
 	{
+		type = typ;
 		name = nme;
 		description = desc;
 		images = imgs;
@@ -171,6 +193,7 @@ class ItemData
 			images.add(imagesJA.getString(i));
 		}
 		name = jo.getString("name");
+		type = jo.getString("type");
 		description = jo.getString("description");
 		button = jo.getString("button");
 		return true;
@@ -181,6 +204,7 @@ class ItemData
 		JsonObjectBuilder objBuild = Json.createObjectBuilder();
 		JsonArrayBuilder arrBuild = Json.createArrayBuilder();
 		objBuild.add("name", name);
+		objBuild.add("type", type);
 		objBuild.add("description", description);
 		Iterator<String> imgIter = images.iterator();
 		while (imgIter.hasNext())
@@ -250,25 +274,79 @@ class ImageInList
 
 class TemplateFeature
 {
-	String name;
+	String type;
+	
+	public boolean setTo(JsonObject jo)
+	{
+		type = jo.getString("type");
+		return true;
+	}
+	
+	public JsonObjectBuilder getJsonObjectBuilder()
+	{
+		JsonObjectBuilder objBuild = Json.createObjectBuilder();
+		objBuild.add("type", type);
+		return objBuild;
+	}
 }
 
 class Template
 {
+	String name;
 	List<TemplateFeature> features;
+	
+	public Template()
+	{
+		features = new ArrayList<TemplateFeature>();
+	}
+	
+	public boolean setTo(JsonObject jo)
+	{
+		features = new ArrayList<TemplateFeature>();
+		JsonArray featsJA = jo.getJsonArray("features");
+		for (int i = 0; i < featsJA.size(); ++i)
+		{
+			TemplateFeature tf = new TemplateFeature();
+			tf.setTo(featsJA.getJsonObject(i));
+			features.add(tf);
+		}
+		name = jo.getString("name");
+		return true;
+	}
+	
+	public JsonObjectBuilder getJsonObjectBuilder()
+	{
+		JsonObjectBuilder objBuild = Json.createObjectBuilder();
+		return objBuild;
+	}
 }
 
 class TemplateHolder
 {
 	List<Template> templates;
+	
+	public TemplateHolder()
+	{
+		templates = new ArrayList<Template>();
+	}
+	
+	public void add(Template t)
+	{
+		templates.add(t);
+	}
 }
 
 public class Example
 {
 	static String readFile(String filename)
 	{
-		String content = null;
 		File file = new File(filename); //for ex foo.txt
+		return readFile(file);
+	}
+	
+	static String readFile(File file)
+	{
+		String content = null;
 		try {
 			FileReader reader = new FileReader(file);
 			char[] chars = new char[(int) file.length()];
@@ -281,14 +359,15 @@ public class Example
 		return content;
 	}
 	
-	static void refreshProductsList(JList products, RegistryData workingRegistry)
+	static void refreshProductsList(JList products, RegistryData workingRegistry, String type)
 	{
 		DefaultListModel dlm = new DefaultListModel();
-		if (workingRegistry.items.size() == 0)
+		List<ItemData> items = workingRegistry.getOfType(type);
+		if (items.size() == 0)
 			dlm.addElement("No Products");
 		else
 		{
-			Iterator<ItemData> itemIter = workingRegistry.items.iterator();
+			Iterator<ItemData> itemIter = items.iterator();
 			while (itemIter.hasNext())
 			{
 				ItemData item = itemIter.next();
@@ -297,6 +376,7 @@ public class Example
 		}
 		products.setModel(dlm);
 	}
+	
 	static public boolean rewriteRegistry(JFrame frame, LocalConfig localConfig, JTextField ftpField, JTextField textField, JPasswordField passField, RegistryData workingRegistry)
 	{
 		try
@@ -346,7 +426,7 @@ public class Example
 	{
 		new Example();
 		
-	}   // end main
+	}
 	
 	public Example()
 	{
@@ -403,11 +483,35 @@ public class Example
 			}
 		}
 		
+		// loading templates from local file system and also template list
+		final JList templateList = new JList();
+		final DefaultListModel dlmTemplate = new DefaultListModel();
+		templateList.setModel(dlmTemplate);
+		
+		TemplateHolder templates = new TemplateHolder();
+		File templatesDir = new File("templates");
+		if (templatesDir.exists() && templatesDir.isDirectory())
+		{
+			Template template = new Template();
+			File[] files = templatesDir.listFiles();
+			for (int i = 0; i < files.length; i++) {
+				String fileString = readFile(files[i]);
+				JsonReader jsonReader = Json.createReader(new StringReader(fileString));
+				JsonObject jo = jsonReader.readObject();
+				jsonReader.close();
+				template.setTo(jo);
+				templates.add(template);
+				dlmTemplate.addElement(template.name);
+			}
+		}
+		
 		File theDir = new File("CMSimages");
-		if (!theDir.exists()) {
+		if (!theDir.exists())
+		{
 			System.out.println("creating directory: " + "CMSimages");
 			boolean result = theDir.mkdir();
-			if(result) {    
+			if(result)
+			{	
 				System.out.println("DIR created");  
 			}
 		}
@@ -435,7 +539,7 @@ public class Example
 		jw.write(rd.getJsonObjectBuilder().build());
 		System.out.println(sw.toString());
 		*/
-			
+		
 		final JList products = new JList();
 		DefaultListModel dlm = new DefaultListModel();
 		dlm.addElement("Not Connected");
@@ -553,7 +657,6 @@ public class Example
 						System.out.println(except.toString());
 						JOptionPane.showMessageDialog(frame, "Is your internet working?");
 					}
-					refreshProductsList(products, workingRegistry);
 					loginButton.setEnabled(true);
 				}
 			});
@@ -564,9 +667,12 @@ public class Example
 		//split up from above
 		JPanel productsPanel = new JPanel();
 		JLabel productsTitle = new JLabel("Products");
+		JLabel templatesTitle = new JLabel("Templates");
 		//productsPanel.setLayout(new GridLayout(0, 1, 0, 0));
 		
 		JScrollPane productsScrollPane = new JScrollPane(products, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		
+		JScrollPane templatesScrollPane = new JScrollPane(templateList, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 		//productsScrollPanePanel.add(productsScrollPane);
 		//productsPanel.add(new JScrollPane(products), BorderLayout.CENTER);
 		final JButton newProductButton = new JButton("new product");
@@ -580,28 +686,77 @@ public class Example
 		
 		playout.setHorizontalGroup(playout.createSequentialGroup()
 			.addGroup(playout.createParallelGroup(GroupLayout.Alignment.LEADING)
+				.addComponent(templatesTitle)
+				.addComponent(templatesScrollPane)
+			)
+			.addGroup(playout.createParallelGroup(GroupLayout.Alignment.LEADING)
 				.addComponent(productsTitle)
 				.addComponent(productsScrollPane)
+				
 				.addComponent(newProductButton)
 				.addComponent(editProductButton)
 				.addComponent(deleteProductButton)
 			)
 		);
+		
 		playout.setVerticalGroup(playout.createSequentialGroup()
-			.addComponent(productsTitle)
 			.addGroup(playout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-				.addComponent(productsScrollPane)
+				.addComponent(productsTitle)
+				.addComponent(templatesTitle)
 			)
-			.addGroup(playout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-				.addComponent(newProductButton)
-			).addGroup(playout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-				.addComponent(editProductButton)
-			).addGroup(playout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-				.addComponent(deleteProductButton)
+			.addGroup(playout.createParallelGroup(GroupLayout.Alignment.LEADING)
+				.addComponent(templatesScrollPane)
+				.addGroup(playout.createSequentialGroup()
+					.addComponent(productsScrollPane)
+					.addGroup(playout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(newProductButton)
+					).addGroup(playout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(editProductButton)
+					).addGroup(playout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(deleteProductButton)
+					)
+				)
 			)
 		);
-		//productsPanel.add(newProductButton, BorderLayout.CENTER);
-		//productsPanel.add(editProductButton, BorderLayout.CENTER);
+		
+		templateList.addListSelectionListener(new ListSelectionListener() {
+			@Override
+			public void valueChanged(ListSelectionEvent arg0) {
+				if (!arg0.getValueIsAdjusting()) {
+					try
+					{
+						System.out.println(templateList.getSelectedValue());
+						refreshProductsList(products, workingRegistry, templateList.getSelectedValue().toString());
+						//dlmTemplate.clear();
+						templateList.clearSelection();
+					}catch(Exception e)
+					{
+						System.out.println(e.toString());
+						templateList.clearSelection();
+					}
+				}
+			}
+		});
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		// this is the split between the top of the GUI and the bottom
+		
+		
+		
+		
+		
+		
+		
+		
+		
 		
 		
 		JPanel productEdit = new JPanel();
@@ -662,7 +817,7 @@ public class Example
 								id = workingRegistry.getItemWithName(lastName);
 								id.name = newName;
 								rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
-								refreshProductsList(products, workingRegistry);
+								refreshProductsList(products, workingRegistry, "product");
 								productNameField.setText(newName);
 							}
 						}
@@ -842,9 +997,9 @@ public class Example
 		);
 		
 		imageList.addListSelectionListener(new ListSelectionListener() {
-            @Override
-            public void valueChanged(ListSelectionEvent arg0) {
-                if (!arg0.getValueIsAdjusting()) {
+			@Override
+			public void valueChanged(ListSelectionEvent arg0) {
+				if (!arg0.getValueIsAdjusting()) {
 					try
 					{
 						System.out.println(imageList.getSelectedValue().toString());
@@ -863,9 +1018,9 @@ public class Example
 					{
 						imageList.clearSelection();
 					}
-                }
-            }
-        });
+				}
+			}
+		});
 		
 		new FileDrop( System.out, imageList,  new FileDrop.Listener()
 		{   public void filesDropped( File[] files )
@@ -935,7 +1090,7 @@ public class Example
 								workingRegistry.items.add(id);
 								
 								rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
-								refreshProductsList(products, workingRegistry);
+								refreshProductsList(products, workingRegistry, "product");
 								
 								JOptionPane.showMessageDialog(frame, "Item created: \""+newProduct+"\"");
 							}
@@ -1055,10 +1210,10 @@ public class Example
 						{
 						}else
 						{
-								workingRegistry.removeItemWithName(name);
-								rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
-								refreshProductsList(products, workingRegistry);
-								JOptionPane.showMessageDialog(frame, "\""+name+"\" deleted!");
+							workingRegistry.removeItemWithName(name);
+							rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
+							refreshProductsList(products, workingRegistry, "product");
+							JOptionPane.showMessageDialog(frame, "\""+name+"\" deleted!");
 						}
 					}else
 					{
@@ -1103,8 +1258,6 @@ public class Example
 					}
 					if (rewritingRegistry)
 					{
-						try
-						{
 							id.name = name;
 							id.description = desc;
 							id.images = new ArrayList<String>();
@@ -1121,50 +1274,13 @@ public class Example
 								}
 							}
 							
-							FTPClient ftp = new FTPClient();
-							ftp.connect(ftpField.getText());
-							ftp.login(textField.getText(), new String(passField.getPassword()));
-							int reply = ftp.getReplyCode();
-							
-							if(!FTPReply.isPositiveCompletion(reply))
-							{
-								ftp.disconnect();
-								JOptionPane.showMessageDialog(frame, "Wrong password!");
-							}else
-							{
-								ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
-								ftp.changeWorkingDirectory(localConfig.path);
-								//ftp.setFileType(FTP.BINARY_FILE_TYPE);
-								ByteArrayOutputStream baos = new ByteArrayOutputStream();
-								
-								System.out.println("no registry exists... writing");
-								StringWriter sw = new StringWriter();
-								JsonWriter jw = Json.createWriter(sw);
-								jw.write(workingRegistry.getJsonObjectBuilder().build());
-								InputStream is = new ByteArrayInputStream(sw.toString().getBytes());
-								ftp.storeFile("registry.txt", is);
-								
-								refreshProductsList(products, workingRegistry);
-								JOptionPane.showMessageDialog(frame, "Writing new registry!");
-								
-								ftp.logout();
-								ftp.disconnect();
-							}
-						}   // end try
-						catch( IOException except )
-						{
-							System.out.println(except.toString());
-							JOptionPane.showMessageDialog(frame, "Is your internet working?");
-						}
+							rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
+						
 					}
 				}
 				uploadButton.setEnabled(true);
 			}
 		});
-		
-		//productEdit.add(productDescPanel);
-		//productEdit.add(imagePanel);
-		//productEdit.add(imageListScrollPane);
 		
 		
 		peLayout.setHorizontalGroup(peLayout.createSequentialGroup()
@@ -1223,10 +1339,6 @@ public class Example
 		panel.add(loginPanel, BorderLayout.NORTH);
 		panel.add(productsPanel, BorderLayout.CENTER);
 		
-		
-		
-		
-
 		frame.setBounds( 100, 100, 300, 400 );
 		frame.pack();
 		frame.setDefaultCloseOperation( frame.EXIT_ON_CLOSE );
