@@ -320,10 +320,497 @@ class Template
 		return objBuild;
 	}
 	
-	public JPanel buildPanel()
+	JTextField productNameField;
+	JTextArea productDescField;
+	DefaultListModel dlmImg;
+	JLabel imageLabel;
+	JList imageList;
+	DefaultListModel dlmImgNone;
+	
+	public JPanel buildPanel(final JFrame frame, final LocalConfig localConfig, final JTextField ftpField, final JTextField textField, final JPasswordField passField, final RegistryData workingRegistry, final JList products)
 	{
-		return null;
+		JPanel productEdit = new JPanel();
+		
+		GroupLayout peLayout = new GroupLayout(productEdit);
+		productEdit.setLayout(peLayout);
+		peLayout.setAutoCreateGaps(true);
+		peLayout.setAutoCreateContainerGaps(true);
+		
+		JPanel productDescPanel = new JPanel();
+		
+		GroupLayout descLayout = new GroupLayout(productDescPanel);
+		productDescPanel.setLayout(descLayout);
+		descLayout.setAutoCreateGaps(true);
+		descLayout.setAutoCreateContainerGaps(true);
+		
+		final JTextField productNameField = new JTextField(20);
+		this.productNameField = productNameField;
+		productNameField.setSize(100, 30);
+		productNameField.setText("");
+		productNameField.setEnabled(false);
+		JLabel nameLabel = new JLabel("Product Name:");
+		//productNamePanel.add(new JLabel("product name:"), BorderLayout.NORTH);
+		//productNamePanel.add(productNameField, BorderLayout.NORTH);
+		
+		final JButton productRenameButton = new JButton("Rename product");
+		productRenameButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent actionE)
+			{
+				productRenameButton.setEnabled(false);
+				
+				String lastName = productNameField.getText();
+				
+				if (lastName.length() == 0)
+				{
+					JOptionPane.showMessageDialog(frame, "You haven't loaded a product!");
+				}else
+				{
+					Object[] possibleValues = {lastName};
+					Object selectedValue = JOptionPane.showInputDialog(frame,"Choose one", "Input",JOptionPane.OK_CANCEL_OPTION, null, null, possibleValues[0]);
+					String newName = ((String)selectedValue);
+					if (newName == null)
+					{
+						
+					}else
+					{
+						if (newName.length() == 0)
+						{
+							JOptionPane.showMessageDialog(frame, "Enter a product name!");
+						}else
+						{
+							if (workingRegistry.checkItemName(newName))
+							{
+								JOptionPane.showMessageDialog(frame, "An item with that name already exists!");
+							}else
+							{
+								ItemData id = new ItemData();
+								
+								id = workingRegistry.getItemWithName(lastName);
+								id.name = newName;
+								Example.rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
+								Example.refreshProductsList(products, workingRegistry, "product");
+								productNameField.setText(newName);
+							}
+						}
+					}
+				}
+				productRenameButton.setEnabled(true);
+			}
+		});
+		
+		final JTextArea productDescField = new JTextArea(15, 40);
+		this.productDescField = productDescField;
+		productDescField.setWrapStyleWord(true); 
+		productDescField.setLineWrap(true); 
+		JScrollPane productDescFieldScrollPane = new JScrollPane(productDescField, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		productDescField.setSize(100, 100);
+		productDescField.setText("put description here");
+		JLabel descLabel = new JLabel("Description:");
+		//productDescPanel.add(, BorderLayout.NORTH);
+		//productDescPanel.add(productDescFieldScrollPane, BorderLayout.NORTH);
+		
+		descLayout.setHorizontalGroup(descLayout.createSequentialGroup()
+			.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+				.addGroup(descLayout.createSequentialGroup()
+					.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(nameLabel)
+					)
+					.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(productNameField)
+					)
+					.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(productRenameButton)
+					)
+				)
+				.addComponent(descLabel)
+				.addComponent(productDescFieldScrollPane)
+			)
+		);
+		descLayout.setVerticalGroup(descLayout.createSequentialGroup()
+			.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+				.addComponent(nameLabel)
+				.addComponent(productNameField)
+				.addComponent(productRenameButton)
+			)
+			.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+				.addComponent(descLabel)
+			)
+			.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+				.addComponent(productDescFieldScrollPane)
+			)
+		);
+		
+		JPanel imagesPanel = new JPanel();
+		
+		GroupLayout imgsLayout = new GroupLayout(imagesPanel);
+		imagesPanel.setLayout(imgsLayout);
+		imgsLayout.setAutoCreateGaps(true);
+		imgsLayout.setAutoCreateContainerGaps(true);
+	
+		final JLabel imageLabel = new JLabel();
+		this.imageLabel = imageLabel;
+		JPanel imagePanel = new JPanel();
+		imagePanel.setMinimumSize(new Dimension(300, 300));
+		//final JLabel imageLabel = new JLabel();
+		imageLabel.setIcon(new ImageIcon("noImage.png"));
+		imagePanel.add(imageLabel);
+		//panel.add(label, BorderLayout.CENTER);
+		
+		final JList imageList = new JList();
+		this.imageList = imageList;
+		JScrollPane imageListScrollPane = new JScrollPane(imageList, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		final DefaultListModel dlmImgNone = new DefaultListModel();
+		this.dlmImgNone = dlmImgNone;
+		dlmImgNone.addElement("No Images");
+		final DefaultListModel dlmImg = new DefaultListModel();
+		this.dlmImg = dlmImg;
+		imageList.setMinimumSize(new Dimension(100, 100));
+		imageList.setModel(dlmImgNone);
+		
+		JButton imgUp = new JButton("^");
+		JButton imgDown = new JButton("v");
+		JButton uploadImg = new JButton("upload");
+		JButton removeImg = new JButton("remove");
+		
+		uploadImg.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent actionE)
+			{
+				if (!imageList.isSelectionEmpty())
+				{
+					ImageInList iil = ((ImageInList)imageList.getSelectedValue());
+					try
+					{
+						FTPClient ftp = new FTPClient();
+						ftp.connect(ftpField.getText());
+						ftp.login(textField.getText(), new String(passField.getPassword()));
+						int reply = ftp.getReplyCode();
+						
+						if(!FTPReply.isPositiveCompletion(reply))
+						{
+							ftp.disconnect();
+							JOptionPane.showMessageDialog(frame, "Wrong password!");
+						}else
+						{
+							FTPFile[] files = ftp.listFiles("CMSimages");
+							if (files.length == 0)
+							{
+								ftp.makeDirectory("CMSimages");
+							}
+							
+							ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
+							ftp.changeWorkingDirectory(localConfig.path);
+							ftp.setFileType(FTP.BINARY_FILE_TYPE);
+							
+							FileInputStream fs = new FileInputStream(new File(iil.localPath));
+							System.out.println("uploading image");
+							ftp.storeFile("CMSimages/"+iil.name, fs);
+							JOptionPane.showMessageDialog(frame, "Uploaded!");
+							
+							ftp.logout();
+							ftp.disconnect();
+						}
+					}   // end try
+					catch( IOException except )
+					{
+						System.out.println(except.toString());
+						JOptionPane.showMessageDialog(frame, "Is your internet working?");
+					}
+				}
+			}
+		});
+		removeImg.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent actionE)
+			{
+				if (!imageList.isSelectionEmpty())
+				{
+					int index = imageList.getSelectedIndex();
+					DefaultListModel model = (DefaultListModel) imageList.getModel();
+					model.remove(index);
+					if (model.getSize() == 0)
+						imageList.setModel(dlmImgNone);
+					
+					ImageIcon newIcon = new ImageIcon("noImage.png");
+					imageLabel.setIcon(newIcon);
+				}
+			}
+		});
+		
+		imagesPanel.add(imagePanel);
+		imagesPanel.add(imageListScrollPane);
+		
+		imgsLayout.setHorizontalGroup(imgsLayout.createSequentialGroup()
+			.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+				.addComponent(imagePanel)
+				.addGroup(imgsLayout.createSequentialGroup()
+					.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(imgUp)
+					)
+					.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(imgDown)
+					)
+					.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(uploadImg)
+					)
+					.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(removeImg)
+					)
+				)
+			)
+			.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+				.addComponent(imageListScrollPane)
+			)
+		);
+		imgsLayout.setVerticalGroup(imgsLayout.createSequentialGroup()
+			.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+				.addComponent(imagePanel)
+				.addComponent(imageListScrollPane)
+			)
+			.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+				.addComponent(imgUp)
+				.addComponent(imgDown)
+				.addComponent(uploadImg)
+				.addComponent(removeImg)
+			)
+		);
+		
+		imageList.addListSelectionListener(new ListSelectionListener() {
+			@Override
+			public void valueChanged(ListSelectionEvent arg0) {
+				if (!arg0.getValueIsAdjusting()) {
+					try
+					{
+						System.out.println(imageList.getSelectedValue().toString());
+						ImageInList iil = ((ImageInList)imageList.getSelectedValue());
+						File imgFile = new File(iil.localPath);
+						ImageIcon imageIcon = new ImageIcon(imgFile.getCanonicalPath());
+						System.out.println(imageIcon.getIconHeight() + ", " + imageIcon.getIconWidth());
+						float widthRatio = imageIcon.getIconHeight() < imageIcon.getIconWidth() ? 1 :imageIcon.getIconWidth()/(float)imageIcon.getIconHeight();
+						float heightRatio = imageIcon.getIconWidth() < imageIcon.getIconHeight() ? 1 :imageIcon.getIconHeight()/(float)imageIcon.getIconWidth();
+						Image img = imageIcon.getImage();
+						Image newimg = img.getScaledInstance((int)Math.floor(300*widthRatio), (int)Math.floor(300*heightRatio), Image.SCALE_SMOOTH);
+						ImageIcon newIcon = new ImageIcon(newimg);
+						imageLabel.setIcon(newIcon);
+						
+					}catch(Exception e)
+					{
+						imageList.clearSelection();
+					}
+				}
+			}
+		});
+		
+		new FileDrop( System.out, imageList,  new FileDrop.Listener()
+		{   public void filesDropped( File[] files )
+			{   for( int i = 0; i < files.length; i++ )
+				{   try
+					{
+						System.out.println(files[i].getCanonicalPath() + "\n");
+						//text.append( files[i].getCanonicalPath() + "\n" );
+						File imgFile = files[i];
+						File source = new File(files[i].getCanonicalPath());
+						File desc = new File("CMSimages/"+files[i].getName());
+						try {
+							FileUtils.copyFile(source, desc);
+							imgFile = new File("CMSimages/"+files[i].getName());
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+						
+						ImageInList iil = new ImageInList(imgFile);
+						dlmImg.addElement(iil);
+						imageList.setModel(dlmImg);
+						
+						imageList.setSelectedValue(iil, true);
+						
+					}   // end try
+					catch( IOException e ) {}
+				}   // end for: through each dropped file
+			}   // end filesDropped
+		}); // end FileDrop.Listener
+		
+		final JButton uploadButton = new JButton("Upload product");
+		uploadButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent actionE)
+			{
+				uploadButton.setEnabled(false);
+				String name = productNameField.getText();
+				String desc = productDescField.getText();
+				if (name.length() == 0)
+				{
+					JOptionPane.showMessageDialog(frame, "Enter a product name!");
+				}else
+				{
+					ItemData id = new ItemData();
+					boolean rewritingRegistry = false;
+					if (workingRegistry.checkItemName(name))
+					{
+						JOptionPane.showMessageDialog(frame, "There's already a product with that name!");
+						int dialogButton = JOptionPane.YES_NO_OPTION;
+						int dialogResult = JOptionPane.showConfirmDialog (frame, "Would you like to override product: \""+name+"\" ?", "Warning", dialogButton);
+						if (dialogResult == JOptionPane.YES_OPTION)
+						{
+							rewritingRegistry = true;
+							id = workingRegistry.getItemWithName(name);
+						}else
+						{
+							
+						}
+					}else
+					{
+						rewritingRegistry = true;
+						workingRegistry.items.add(id);
+					}
+					if (rewritingRegistry)
+					{
+							id.name = name;
+							id.description = desc;
+							id.images = new ArrayList<String>();
+							DefaultListModel model = (DefaultListModel) imageList.getModel();
+							for (int i = 0; i < model.getSize(); ++i)
+							{
+								try
+								{
+									ImageInList currImgInLst = (ImageInList)model.get(i);
+									id.images.add(currImgInLst.name);
+								}catch(ClassCastException e)
+								{
+									
+								}
+							}
+							
+							Example.rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
+						
+					}
+				}
+				uploadButton.setEnabled(true);
+			}
+		});
+		
+		peLayout.setHorizontalGroup(peLayout.createSequentialGroup()
+			.addGroup(peLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+				.addGroup(peLayout.createSequentialGroup()
+					.addGroup(peLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(productDescPanel)
+					)
+					.addGroup(peLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+						.addComponent(imagesPanel)
+					)
+				)
+				.addComponent(uploadButton)
+			)
+		);
+		peLayout.setVerticalGroup(peLayout.createSequentialGroup()
+			.addGroup(peLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+				.addComponent(productDescPanel)
+				.addComponent(imagesPanel)
+			)
+			.addGroup(peLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+				.addComponent(uploadButton)
+			)
+		);
+		return productEdit;
 	}
+	
+	public String getName()
+	{
+		return productNameField.getText();
+	}
+	
+	public void rename(String s)
+	{
+		productNameField.setText(s);
+	}
+	
+	public void reset()
+	{
+		productNameField.setText("");
+		productDescField.setText("put description here");
+		dlmImg.clear();
+		imageLabel.setIcon(new ImageIcon("noImage.png"));
+		imageList.setModel(dlmImgNone);
+	}
+	
+	public void setToDefault(ItemData id)
+	{
+		id.type = "product";
+	}
+	
+	public void setTo(final JFrame frame, final LocalConfig localConfig, final JTextField ftpField, final JTextField textField, final JPasswordField passField, ItemData id)
+	{
+		productNameField.setText(id.name);
+		productDescField.setText(id.description);
+		dlmImg.clear();
+		int imagesToDownload = 0;
+		Iterator<String> imgdls = id.images.iterator();
+		while (imgdls.hasNext())
+		{
+			String imgStr = imgdls.next();
+			String fullImgStr = "CMSimages/"+imgStr;
+			File localImgFile = new File(fullImgStr);
+			if (localImgFile.exists() && !localImgFile.isDirectory())
+			{
+			}else
+			{
+				imagesToDownload++;
+			}
+		}
+		if (imagesToDownload > 0)
+			JOptionPane.showMessageDialog(frame, "Downloading "+imagesToDownload+" images, please be paient...\n(press \"OK\" first)");
+		Iterator<String> imgs = id.images.iterator();
+		while (imgs.hasNext())
+		{
+			String imgStr = imgs.next();
+			String fullImgStr = "CMSimages/"+imgStr;
+			File localImgFile = new File(fullImgStr);
+			if (localImgFile.exists() && !localImgFile.isDirectory())
+			{
+			}else
+			{
+				try
+				{
+					FTPClient ftp = new FTPClient();
+					ftp.connect(ftpField.getText());
+					ftp.login(textField.getText(), new String(passField.getPassword()));
+					int reply = ftp.getReplyCode();
+					
+					if(!FTPReply.isPositiveCompletion(reply))
+					{
+						ftp.disconnect();
+						JOptionPane.showMessageDialog(frame, "Wrong password!");
+					}else
+					{
+						ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
+						ftp.changeWorkingDirectory(localConfig.path);
+						
+						FTPFile[] files = ftp.listFiles(fullImgStr);
+						if (files.length == 0)
+						{
+							JOptionPane.showMessageDialog(frame, "Server is missing: \""+ imgStr+"\" please upload this image");
+						}else
+						{
+							ftp.setFileType(FTP.BINARY_FILE_TYPE);
+							
+							FileOutputStream outStream = new FileOutputStream(fullImgStr);
+							ftp.retrieveFile(fullImgStr, outStream);
+						}
+						
+						ftp.logout();
+						ftp.disconnect();
+					}
+				}   // end try
+				catch( IOException except )
+				{
+					System.out.println(except.toString());
+					JOptionPane.showMessageDialog(frame, "Is your internet working?");
+				}
+			}
+			ImageInList iil = new ImageInList(imgStr, fullImgStr);
+			dlmImg.addElement(iil);
+			imageList.setModel(dlmImg);
+		}
+		imageLabel.setIcon(new ImageIcon("noImage.png"));
+		JOptionPane.showMessageDialog(frame, "You are now editing: "+ name);
+	} 
 }
 
 class TemplateHolder
@@ -359,6 +846,11 @@ class TemplateHolder
 		}
 		return null;
 	}
+}
+
+class MainGUI
+{
+	
 }
 
 public class Example
@@ -444,8 +936,6 @@ public class Example
 		return false;
 	}
 	
-	final static JLabel imageLabel = new JLabel();
-	
 	/** Runs a sample program that shows dropped files */
 	public static void main( String[] args )
 	{
@@ -513,7 +1003,8 @@ public class Example
 		final DefaultListModel dlmTemplate = new DefaultListModel();
 		templateList.setModel(dlmTemplate);
 		
-		TemplateHolder templates = new TemplateHolder();
+		final TemplateHolder templates = new TemplateHolder();
+		templates.setTemplate("product");
 		File templatesDir = new File("templates");
 		if (templatesDir.exists() && templatesDir.isDirectory())
 		{
@@ -783,298 +1274,7 @@ public class Example
 		
 		
 		
-		
-		JPanel productEdit = new JPanel();
-		
-		GroupLayout peLayout = new GroupLayout(productEdit);
-		productEdit.setLayout(peLayout);
-		peLayout.setAutoCreateGaps(true);
-		peLayout.setAutoCreateContainerGaps(true);
-		
-		JPanel productDescPanel = new JPanel();
-		
-		GroupLayout descLayout = new GroupLayout(productDescPanel);
-		productDescPanel.setLayout(descLayout);
-		descLayout.setAutoCreateGaps(true);
-		descLayout.setAutoCreateContainerGaps(true);
-		
-		final JTextField productNameField = new JTextField(20);
-		productNameField.setSize(100, 30);
-		productNameField.setText("");
-		productNameField.setEnabled(false);
-		JLabel nameLabel = new JLabel("Product Name:");
-		//productNamePanel.add(new JLabel("product name:"), BorderLayout.NORTH);
-		//productNamePanel.add(productNameField, BorderLayout.NORTH);
-		
-		final JButton productRenameButton = new JButton("Rename product");
-		productRenameButton.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent actionE)
-			{
-				productRenameButton.setEnabled(false);
-				
-				String lastName = productNameField.getText();
-				
-				if (lastName.length() == 0)
-				{
-					JOptionPane.showMessageDialog(frame, "You haven't loaded a product!");
-				}else
-				{
-					Object[] possibleValues = {lastName};
-					Object selectedValue = JOptionPane.showInputDialog(frame,"Choose one", "Input",JOptionPane.OK_CANCEL_OPTION, null, null, possibleValues[0]);
-					String newName = ((String)selectedValue);
-					if (newName == null)
-					{
-						
-					}else
-					{
-						if (newName.length() == 0)
-						{
-							JOptionPane.showMessageDialog(frame, "Enter a product name!");
-						}else
-						{
-							if (workingRegistry.checkItemName(newName))
-							{
-								JOptionPane.showMessageDialog(frame, "An item with that name already exists!");
-							}else
-							{
-								ItemData id = new ItemData();
-								
-								id = workingRegistry.getItemWithName(lastName);
-								id.name = newName;
-								rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
-								refreshProductsList(products, workingRegistry, "product");
-								productNameField.setText(newName);
-							}
-						}
-					}
-				}
-				productRenameButton.setEnabled(true);
-			}
-		});
-		
-		final JTextArea productDescField = new JTextArea(15, 40);
-		productDescField.setWrapStyleWord(true); 
-		productDescField.setLineWrap(true); 
-		JScrollPane productDescFieldScrollPane = new JScrollPane(productDescField, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-		productDescField.setSize(100, 100);
-		productDescField.setText("put description here");
-		JLabel descLabel = new JLabel("Description:");
-		//productDescPanel.add(, BorderLayout.NORTH);
-		//productDescPanel.add(productDescFieldScrollPane, BorderLayout.NORTH);
-		
-		descLayout.setHorizontalGroup(descLayout.createSequentialGroup()
-			.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-				.addGroup(descLayout.createSequentialGroup()
-					.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-						.addComponent(nameLabel)
-					)
-					.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-						.addComponent(productNameField)
-					)
-					.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-						.addComponent(productRenameButton)
-					)
-				)
-				.addComponent(descLabel)
-				.addComponent(productDescFieldScrollPane)
-			)
-		);
-		descLayout.setVerticalGroup(descLayout.createSequentialGroup()
-			.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-				.addComponent(nameLabel)
-				.addComponent(productNameField)
-				.addComponent(productRenameButton)
-			)
-			.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-				.addComponent(descLabel)
-			)
-			.addGroup(descLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-				.addComponent(productDescFieldScrollPane)
-			)
-		);
-		
-		JPanel imagesPanel = new JPanel();
-		
-		GroupLayout imgsLayout = new GroupLayout(imagesPanel);
-		imagesPanel.setLayout(imgsLayout);
-		imgsLayout.setAutoCreateGaps(true);
-		imgsLayout.setAutoCreateContainerGaps(true);
-		
-		JPanel imagePanel = new JPanel();
-		imagePanel.setMinimumSize(new Dimension(300, 300));
-		//final JLabel imageLabel = new JLabel();
-		imageLabel.setIcon(new ImageIcon("noImage.png"));
-		imagePanel.add(imageLabel);
-		//panel.add(label, BorderLayout.CENTER);
-		
-		final JList imageList = new JList();
-		JScrollPane imageListScrollPane = new JScrollPane(imageList, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-		final DefaultListModel dlmImgNone = new DefaultListModel();
-		dlmImgNone.addElement("No Images");
-		final DefaultListModel dlmImg = new DefaultListModel();
-		imageList.setMinimumSize(new Dimension(100, 100));
-		imageList.setModel(dlmImgNone);
-		
-		JButton imgUp = new JButton("^");
-		JButton imgDown = new JButton("v");
-		JButton uploadImg = new JButton("upload");
-		JButton removeImg = new JButton("remove");
-		
-		uploadImg.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent actionE)
-			{
-				if (!imageList.isSelectionEmpty())
-				{
-					ImageInList iil = ((ImageInList)imageList.getSelectedValue());
-					try
-					{
-						FTPClient ftp = new FTPClient();
-						ftp.connect(ftpField.getText());
-						ftp.login(textField.getText(), new String(passField.getPassword()));
-						int reply = ftp.getReplyCode();
-						
-						if(!FTPReply.isPositiveCompletion(reply))
-						{
-							ftp.disconnect();
-							JOptionPane.showMessageDialog(frame, "Wrong password!");
-						}else
-						{
-							FTPFile[] files = ftp.listFiles("CMSimages");
-							if (files.length == 0)
-							{
-								ftp.makeDirectory("CMSimages");
-							}
-							
-							ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
-							ftp.changeWorkingDirectory(localConfig.path);
-							ftp.setFileType(FTP.BINARY_FILE_TYPE);
-							
-							FileInputStream fs = new FileInputStream(new File(iil.localPath));
-							System.out.println("uploading image");
-							ftp.storeFile("CMSimages/"+iil.name, fs);
-							JOptionPane.showMessageDialog(frame, "Uploaded!");
-							
-							ftp.logout();
-							ftp.disconnect();
-						}
-					}   // end try
-					catch( IOException except )
-					{
-						System.out.println(except.toString());
-						JOptionPane.showMessageDialog(frame, "Is your internet working?");
-					}
-				}
-			}
-		});
-		removeImg.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent actionE)
-			{
-				if (!imageList.isSelectionEmpty())
-				{
-					int index = imageList.getSelectedIndex();
-					DefaultListModel model = (DefaultListModel) imageList.getModel();
-					model.remove(index);
-					if (model.getSize() == 0)
-						imageList.setModel(dlmImgNone);
-					
-					ImageIcon newIcon = new ImageIcon("noImage.png");
-					imageLabel.setIcon(newIcon);
-				}
-			}
-		});
-		
-		imagesPanel.add(imagePanel);
-		imagesPanel.add(imageListScrollPane);
-		
-		imgsLayout.setHorizontalGroup(imgsLayout.createSequentialGroup()
-			.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-				.addComponent(imagePanel)
-				.addGroup(imgsLayout.createSequentialGroup()
-					.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-						.addComponent(imgUp)
-					)
-					.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-						.addComponent(imgDown)
-					)
-					.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-						.addComponent(uploadImg)
-					)
-					.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-						.addComponent(removeImg)
-					)
-				)
-			)
-			.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-				.addComponent(imageListScrollPane)
-			)
-		);
-		imgsLayout.setVerticalGroup(imgsLayout.createSequentialGroup()
-			.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-				.addComponent(imagePanel)
-				.addComponent(imageListScrollPane)
-			)
-			.addGroup(imgsLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-				.addComponent(imgUp)
-				.addComponent(imgDown)
-				.addComponent(uploadImg)
-				.addComponent(removeImg)
-			)
-		);
-		
-		imageList.addListSelectionListener(new ListSelectionListener() {
-			@Override
-			public void valueChanged(ListSelectionEvent arg0) {
-				if (!arg0.getValueIsAdjusting()) {
-					try
-					{
-						System.out.println(imageList.getSelectedValue().toString());
-						ImageInList iil = ((ImageInList)imageList.getSelectedValue());
-						File imgFile = new File(iil.localPath);
-						ImageIcon imageIcon = new ImageIcon(imgFile.getCanonicalPath());
-						System.out.println(imageIcon.getIconHeight() + ", " + imageIcon.getIconWidth());
-						float widthRatio = imageIcon.getIconHeight() < imageIcon.getIconWidth() ? 1 :imageIcon.getIconWidth()/(float)imageIcon.getIconHeight();
-						float heightRatio = imageIcon.getIconWidth() < imageIcon.getIconHeight() ? 1 :imageIcon.getIconHeight()/(float)imageIcon.getIconWidth();
-						Image img = imageIcon.getImage();
-						Image newimg = img.getScaledInstance((int)Math.floor(300*widthRatio), (int)Math.floor(300*heightRatio), Image.SCALE_SMOOTH);
-						ImageIcon newIcon = new ImageIcon(newimg);
-						imageLabel.setIcon(newIcon);
-						
-					}catch(Exception e)
-					{
-						imageList.clearSelection();
-					}
-				}
-			}
-		});
-		
-		new FileDrop( System.out, imageList,  new FileDrop.Listener()
-		{   public void filesDropped( File[] files )
-			{   for( int i = 0; i < files.length; i++ )
-				{   try
-					{
-						System.out.println(files[i].getCanonicalPath() + "\n");
-						//text.append( files[i].getCanonicalPath() + "\n" );
-						File imgFile = files[i];
-						File source = new File(files[i].getCanonicalPath());
-						File desc = new File("CMSimages/"+files[i].getName());
-						try {
-							FileUtils.copyFile(source, desc);
-							imgFile = new File("CMSimages/"+files[i].getName());
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-						
-						ImageInList iil = new ImageInList(imgFile);
-						dlmImg.addElement(iil);
-						imageList.setModel(dlmImg);
-						
-						imageList.setSelectedValue(iil, true);
-						
-					}   // end try
-					catch( IOException e ) {}
-				}   // end for: through each dropped file
-			}   // end filesDropped
-		}); // end FileDrop.Listener
+		JPanel productEdit = templates.getCurrentTemplate().buildPanel(frame, localConfig, ftpField, textField, passField, workingRegistry, products);
 		
 		newProductButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent actionE)
@@ -1086,7 +1286,7 @@ public class Example
 					Object selectedValue = JOptionPane.showInputDialog(frame, "Enter product name:", "Input", JOptionPane.OK_CANCEL_OPTION);
 					String newProduct = ((String)selectedValue);
 					
-					String lastName = productNameField.getText();
+					String lastName = templates.getCurrentTemplate().getName();
 					
 					if (newProduct == null)
 					{
@@ -1106,11 +1306,9 @@ public class Example
 								ItemData id = new ItemData();
 								id.name = newProduct;
 								
-								productNameField.setText(newProduct);
-								productDescField.setText("put description here");
-								dlmImg.clear();
-								imageLabel.setIcon(new ImageIcon("noImage.png"));
-								imageList.setModel(dlmImgNone);
+								templates.getCurrentTemplate().rename(newProduct);
+								templates.getCurrentTemplate().reset();
+								templates.getCurrentTemplate().setToDefault(id);
 								
 								workingRegistry.items.add(id);
 								
@@ -1142,79 +1340,7 @@ public class Example
 					{
 						String name = products.getSelectedValue().toString();
 						ItemData id = workingRegistry.getItemWithName(name);
-						productNameField.setText(id.name);
-						productDescField.setText(id.description);
-						dlmImg.clear();
-						int imagesToDownload = 0;
-						Iterator<String> imgdls = id.images.iterator();
-						while (imgdls.hasNext())
-						{
-							String imgStr = imgdls.next();
-							String fullImgStr = "CMSimages/"+imgStr;
-							File localImgFile = new File(fullImgStr);
-							if (localImgFile.exists() && !localImgFile.isDirectory())
-							{
-							}else
-							{
-								imagesToDownload++;
-							}
-						}
-						if (imagesToDownload > 0)
-							JOptionPane.showMessageDialog(frame, "Downloading "+imagesToDownload+" images, please be paient...\n(press \"OK\" first)");
-						Iterator<String> imgs = id.images.iterator();
-						while (imgs.hasNext())
-						{
-							String imgStr = imgs.next();
-							String fullImgStr = "CMSimages/"+imgStr;
-							File localImgFile = new File(fullImgStr);
-							if (localImgFile.exists() && !localImgFile.isDirectory())
-							{
-							}else
-							{
-								try
-								{
-									FTPClient ftp = new FTPClient();
-									ftp.connect(ftpField.getText());
-									ftp.login(textField.getText(), new String(passField.getPassword()));
-									int reply = ftp.getReplyCode();
-									
-									if(!FTPReply.isPositiveCompletion(reply))
-									{
-										ftp.disconnect();
-										JOptionPane.showMessageDialog(frame, "Wrong password!");
-									}else
-									{
-										ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
-										ftp.changeWorkingDirectory(localConfig.path);
-										
-										FTPFile[] files = ftp.listFiles(fullImgStr);
-										if (files.length == 0)
-										{
-											JOptionPane.showMessageDialog(frame, "Server is missing: \""+ imgStr+"\" please upload this image");
-										}else
-										{
-											ftp.setFileType(FTP.BINARY_FILE_TYPE);
-											
-											FileOutputStream outStream = new FileOutputStream(fullImgStr);
-											ftp.retrieveFile(fullImgStr, outStream);
-										}
-										
-										ftp.logout();
-										ftp.disconnect();
-									}
-								}   // end try
-								catch( IOException except )
-								{
-									System.out.println(except.toString());
-									JOptionPane.showMessageDialog(frame, "Is your internet working?");
-								}
-							}
-							ImageInList iil = new ImageInList(imgStr, fullImgStr);
-							dlmImg.addElement(iil);
-							imageList.setModel(dlmImg);
-						}
-						imageLabel.setIcon(new ImageIcon("noImage.png"));
-						JOptionPane.showMessageDialog(frame, "You are now editing: "+ name);
+						templates.getCurrentTemplate().setTo(frame, localConfig, ftpField, textField, passField, id);
 					}
 				}
 				editProductButton.setEnabled(true);
@@ -1238,7 +1364,10 @@ public class Example
 							workingRegistry.removeItemWithName(name);
 							rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
 							refreshProductsList(products, workingRegistry, "product");
+							if (name.equals(templates.getCurrentTemplate().getName()))
+								templates.getCurrentTemplate().reset();
 							JOptionPane.showMessageDialog(frame, "\""+name+"\" deleted!");
+							
 						}
 					}else
 					{
@@ -1248,88 +1377,6 @@ public class Example
 				deleteProductButton.setEnabled(true);
 			}
 		});
-		
-		final JButton uploadButton = new JButton("Upload product");
-		uploadButton.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent actionE)
-			{
-				uploadButton.setEnabled(false);
-				String name = productNameField.getText();
-				String desc = productDescField.getText();
-				if (name.length() == 0)
-				{
-					JOptionPane.showMessageDialog(frame, "Enter a product name!");
-				}else
-				{
-					ItemData id = new ItemData();
-					boolean rewritingRegistry = false;
-					if (workingRegistry.checkItemName(name))
-					{
-						JOptionPane.showMessageDialog(frame, "There's already a product with that name!");
-						int dialogButton = JOptionPane.YES_NO_OPTION;
-						int dialogResult = JOptionPane.showConfirmDialog (frame, "Would you like to override product: \""+name+"\" ?", "Warning", dialogButton);
-						if (dialogResult == JOptionPane.YES_OPTION)
-						{
-							rewritingRegistry = true;
-							id = workingRegistry.getItemWithName(name);
-						}else
-						{
-							
-						}
-					}else
-					{
-						rewritingRegistry = true;
-						workingRegistry.items.add(id);
-					}
-					if (rewritingRegistry)
-					{
-							id.name = name;
-							id.description = desc;
-							id.images = new ArrayList<String>();
-							DefaultListModel model = (DefaultListModel) imageList.getModel();
-							for (int i = 0; i < model.getSize(); ++i)
-							{
-								try
-								{
-									ImageInList currImgInLst = (ImageInList)model.get(i);
-									id.images.add(currImgInLst.name);
-								}catch(ClassCastException e)
-								{
-									
-								}
-							}
-							
-							rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
-						
-					}
-				}
-				uploadButton.setEnabled(true);
-			}
-		});
-		
-		
-		peLayout.setHorizontalGroup(peLayout.createSequentialGroup()
-			.addGroup(peLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-				.addGroup(peLayout.createSequentialGroup()
-					.addGroup(peLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-						.addComponent(productDescPanel)
-					)
-					.addGroup(peLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-						.addComponent(imagesPanel)
-					)
-				)
-				.addComponent(uploadButton)
-			)
-		);
-		peLayout.setVerticalGroup(peLayout.createSequentialGroup()
-			.addGroup(peLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-				.addComponent(productDescPanel)
-				.addComponent(imagesPanel)
-			)
-			.addGroup(peLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-				.addComponent(uploadButton)
-			)
-		);
 		
 		GroupLayout layout = new GroupLayout(panel);
 		panel.setLayout(layout);
