@@ -1,2 +1,3 @@
-java -jar Craps.jar
+cd build
+java -jar CMS.jar
 pause

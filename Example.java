@@ -292,12 +292,18 @@ class TemplateFeature
 
 class Template
 {
-	String name;
+	private String name;
 	List<TemplateFeature> features;
+	JPanel panel;
 	
 	public Template()
 	{
 		features = new ArrayList<TemplateFeature>();
+	}
+	
+	public String getTemplateName()
+	{
+		return name;
 	}
 	
 	public boolean setTo(JsonObject jo)
@@ -311,6 +317,7 @@ class Template
 			features.add(tf);
 		}
 		name = jo.getString("name");
+		System.out.println(name);
 		return true;
 	}
 	
@@ -327,7 +334,7 @@ class Template
 	JList imageList;
 	DefaultListModel dlmImgNone;
 	
-	public JPanel buildPanel(final JFrame frame, final LocalConfig localConfig, final JTextField ftpField, final JTextField textField, final JPasswordField passField, final RegistryData workingRegistry, final JList products)
+	public JPanel buildPanel(final MainGUI mainGUI)
 	{
 		JPanel productEdit = new JPanel();
 		
@@ -362,11 +369,11 @@ class Template
 				
 				if (lastName.length() == 0)
 				{
-					JOptionPane.showMessageDialog(frame, "You haven't loaded a product!");
+					JOptionPane.showMessageDialog(mainGUI.frame, "You haven't loaded a product!");
 				}else
 				{
 					Object[] possibleValues = {lastName};
-					Object selectedValue = JOptionPane.showInputDialog(frame,"Choose one", "Input",JOptionPane.OK_CANCEL_OPTION, null, null, possibleValues[0]);
+					Object selectedValue = JOptionPane.showInputDialog(mainGUI.frame,"Choose one", "Input",JOptionPane.OK_CANCEL_OPTION, null, null, possibleValues[0]);
 					String newName = ((String)selectedValue);
 					if (newName == null)
 					{
@@ -375,20 +382,20 @@ class Template
 					{
 						if (newName.length() == 0)
 						{
-							JOptionPane.showMessageDialog(frame, "Enter a product name!");
+							JOptionPane.showMessageDialog(mainGUI.frame, "Enter a product name!");
 						}else
 						{
-							if (workingRegistry.checkItemName(newName))
+							if (mainGUI.workingRegistry.checkItemName(newName))
 							{
-								JOptionPane.showMessageDialog(frame, "An item with that name already exists!");
+								JOptionPane.showMessageDialog(mainGUI.frame, "An item with that name already exists!");
 							}else
 							{
 								ItemData id = new ItemData();
 								
-								id = workingRegistry.getItemWithName(lastName);
+								id = mainGUI.workingRegistry.getItemWithName(lastName);
 								id.name = newName;
-								Example.rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
-								Example.refreshProductsList(products, workingRegistry, "product");
+								mainGUI.rewriteRegistry();
+								mainGUI.refreshProductsList();
 								productNameField.setText(newName);
 							}
 						}
@@ -480,16 +487,8 @@ class Template
 					ImageInList iil = ((ImageInList)imageList.getSelectedValue());
 					try
 					{
-						FTPClient ftp = new FTPClient();
-						ftp.connect(ftpField.getText());
-						ftp.login(textField.getText(), new String(passField.getPassword()));
-						int reply = ftp.getReplyCode();
-						
-						if(!FTPReply.isPositiveCompletion(reply))
-						{
-							ftp.disconnect();
-							JOptionPane.showMessageDialog(frame, "Wrong password!");
-						}else
+						FTPClient ftp = mainGUI.getLogin();
+						if (ftp != null)
 						{
 							FTPFile[] files = ftp.listFiles("CMSimages");
 							if (files.length == 0)
@@ -498,13 +497,13 @@ class Template
 							}
 							
 							ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
-							ftp.changeWorkingDirectory(localConfig.path);
+							ftp.changeWorkingDirectory(mainGUI.localConfig.path);
 							ftp.setFileType(FTP.BINARY_FILE_TYPE);
 							
 							FileInputStream fs = new FileInputStream(new File(iil.localPath));
 							System.out.println("uploading image");
 							ftp.storeFile("CMSimages/"+iil.name, fs);
-							JOptionPane.showMessageDialog(frame, "Uploaded!");
+							JOptionPane.showMessageDialog(mainGUI.frame, "Uploaded!");
 							
 							ftp.logout();
 							ftp.disconnect();
@@ -513,7 +512,7 @@ class Template
 					catch( IOException except )
 					{
 						System.out.println(except.toString());
-						JOptionPane.showMessageDialog(frame, "Is your internet working?");
+						JOptionPane.showMessageDialog(mainGUI.frame, "Is your internet working?");
 					}
 				}
 			}
@@ -637,20 +636,20 @@ class Template
 				String desc = productDescField.getText();
 				if (name.length() == 0)
 				{
-					JOptionPane.showMessageDialog(frame, "Enter a product name!");
+					JOptionPane.showMessageDialog(mainGUI.frame, "Enter a product name!");
 				}else
 				{
 					ItemData id = new ItemData();
 					boolean rewritingRegistry = false;
-					if (workingRegistry.checkItemName(name))
+					if (mainGUI.workingRegistry.checkItemName(name))
 					{
-						JOptionPane.showMessageDialog(frame, "There's already a product with that name!");
+						JOptionPane.showMessageDialog(mainGUI.frame, "There's already a product with that name!");
 						int dialogButton = JOptionPane.YES_NO_OPTION;
-						int dialogResult = JOptionPane.showConfirmDialog (frame, "Would you like to override product: \""+name+"\" ?", "Warning", dialogButton);
+						int dialogResult = JOptionPane.showConfirmDialog (mainGUI.frame, "Would you like to override product: \""+name+"\" ?", "Warning", dialogButton);
 						if (dialogResult == JOptionPane.YES_OPTION)
 						{
 							rewritingRegistry = true;
-							id = workingRegistry.getItemWithName(name);
+							id = mainGUI.workingRegistry.getItemWithName(name);
 						}else
 						{
 							
@@ -658,7 +657,7 @@ class Template
 					}else
 					{
 						rewritingRegistry = true;
-						workingRegistry.items.add(id);
+						mainGUI.workingRegistry.items.add(id);
 					}
 					if (rewritingRegistry)
 					{
@@ -678,7 +677,7 @@ class Template
 								}
 							}
 							
-							Example.rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
+							mainGUI.rewriteRegistry();
 						
 					}
 				}
@@ -732,10 +731,10 @@ class Template
 	
 	public void setToDefault(ItemData id)
 	{
-		id.type = "product";
+		id.type = this.name;
 	}
 	
-	public void setTo(final JFrame frame, final LocalConfig localConfig, final JTextField ftpField, final JTextField textField, final JPasswordField passField, ItemData id)
+	public void setTo(MainGUI mainGUI, ItemData id)
 	{
 		productNameField.setText(id.name);
 		productDescField.setText(id.description);
@@ -755,7 +754,7 @@ class Template
 			}
 		}
 		if (imagesToDownload > 0)
-			JOptionPane.showMessageDialog(frame, "Downloading "+imagesToDownload+" images, please be paient...\n(press \"OK\" first)");
+			JOptionPane.showMessageDialog(mainGUI.frame, "Downloading "+imagesToDownload+" images, please be patient...\n(press \"OK\" first)");
 		Iterator<String> imgs = id.images.iterator();
 		while (imgs.hasNext())
 		{
@@ -768,24 +767,16 @@ class Template
 			{
 				try
 				{
-					FTPClient ftp = new FTPClient();
-					ftp.connect(ftpField.getText());
-					ftp.login(textField.getText(), new String(passField.getPassword()));
-					int reply = ftp.getReplyCode();
-					
-					if(!FTPReply.isPositiveCompletion(reply))
-					{
-						ftp.disconnect();
-						JOptionPane.showMessageDialog(frame, "Wrong password!");
-					}else
+					FTPClient ftp = mainGUI.getLogin();
+					if (ftp != null)
 					{
 						ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
-						ftp.changeWorkingDirectory(localConfig.path);
+						ftp.changeWorkingDirectory(mainGUI.localConfig.path);
 						
 						FTPFile[] files = ftp.listFiles(fullImgStr);
 						if (files.length == 0)
 						{
-							JOptionPane.showMessageDialog(frame, "Server is missing: \""+ imgStr+"\" please upload this image");
+							JOptionPane.showMessageDialog(mainGUI.frame, "Server is missing: \""+ imgStr+"\" please upload this image");
 						}else
 						{
 							ftp.setFileType(FTP.BINARY_FILE_TYPE);
@@ -801,7 +792,7 @@ class Template
 				catch( IOException except )
 				{
 					System.out.println(except.toString());
-					JOptionPane.showMessageDialog(frame, "Is your internet working?");
+					JOptionPane.showMessageDialog(mainGUI.frame, "Is your internet working?");
 				}
 			}
 			ImageInList iil = new ImageInList(imgStr, fullImgStr);
@@ -809,7 +800,7 @@ class Template
 			imageList.setModel(dlmImg);
 		}
 		imageLabel.setIcon(new ImageIcon("noImage.png"));
-		JOptionPane.showMessageDialog(frame, "You are now editing: "+ name);
+		JOptionPane.showMessageDialog(mainGUI.frame, "You are now editing: "+ name);
 	} 
 }
 
@@ -840,9 +831,9 @@ class TemplateHolder
 		Iterator<Template> tmplIter = templates.iterator();
 		while (tmplIter.hasNext())
 		{
-			Template t = tmplIter.next();
-			if (t.name.equals(currentTemplate)) 
-				return t;
+			Template nextTempl = tmplIter.next();
+			if (nextTempl.getTemplateName().equals(currentTemplate)) 
+				return nextTempl;
 		}
 		return null;
 	}
@@ -850,11 +841,19 @@ class TemplateHolder
 
 class MainGUI
 {
+	LocalConfig localConfig;
+	JList templateList;
+	DefaultListModel dlmTemplate;
+	TemplateHolder templates;
+	JFrame frame;
+	RegistryData workingRegistry;
+	JList products;
+	JTextField ftpField;
+	JTextField textField;
+	JTextField pathField;
+	JPasswordField passField;
+	JPanel templatePanel;
 	
-}
-
-public class Example
-{
 	static String readFile(String filename)
 	{
 		File file = new File(filename); //for ex foo.txt
@@ -876,10 +875,10 @@ public class Example
 		return content;
 	}
 	
-	static void refreshProductsList(JList products, RegistryData workingRegistry, String type)
+	public void refreshProductsList()
 	{
 		DefaultListModel dlm = new DefaultListModel();
-		List<ItemData> items = workingRegistry.getOfType(type);
+		List<ItemData> items = workingRegistry.getOfType(templates.getCurrentTemplate().getTemplateName());
 		if (items.size() == 0)
 			dlm.addElement("No Products");
 		else
@@ -894,20 +893,26 @@ public class Example
 		products.setModel(dlm);
 	}
 	
-	static public boolean rewriteRegistry(JFrame frame, LocalConfig localConfig, JTextField ftpField, JTextField textField, JPasswordField passField, RegistryData workingRegistry)
+	public void switchTemplate(String type)
+	{
+		System.out.println("switching to:"+type);
+		templates.setTemplate(type);
+		
+		templatePanel.removeAll();
+		templatePanel.add(templates.getCurrentTemplate().panel);
+		templatePanel.setVisible(true);
+		templatePanel.revalidate();
+		templatePanel.repaint();
+		
+		frame.pack();
+	}
+	
+	public boolean rewriteRegistry()
 	{
 		try
 		{
-			FTPClient ftp = new FTPClient();
-			ftp.connect(ftpField.getText());
-			ftp.login(textField.getText(), new String(passField.getPassword()));
-			int reply = ftp.getReplyCode();
-			
-			if(!FTPReply.isPositiveCompletion(reply))
-			{
-				ftp.disconnect();
-				JOptionPane.showMessageDialog(frame, "Wrong password!");
-			}else
+			FTPClient ftp = this.getLogin();
+			if (ftp != null)
 			{
 				ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
 				ftp.changeWorkingDirectory(localConfig.path);
@@ -936,15 +941,9 @@ public class Example
 		return false;
 	}
 	
-	/** Runs a sample program that shows dropped files */
-	public static void main( String[] args )
+	public MainGUI()
 	{
-		new Example();
-		
-	}
-	
-	public Example()
-	{
+		final MainGUI mainGUI = this;
 		try
 		{
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
@@ -953,12 +952,12 @@ public class Example
 			System.out.println(exp.toString());
 		}
 		// local config stuff
-		final LocalConfig localConfig = new LocalConfig();
+		localConfig = new LocalConfig();
 		boolean localConfigNeedsWrite = false;
 		File localConfFile = new File("localConf.json");
 		if (localConfFile.exists() && !localConfFile.isDirectory())
 		{
-			String fileString = readFile("localConf.json");
+			String fileString = MainGUI.readFile("localConf.json");
 			System.out.println(fileString);
 			try
 			{
@@ -999,25 +998,28 @@ public class Example
 		}
 		
 		// loading templates from local file system and also template list
-		final JList templateList = new JList();
-		final DefaultListModel dlmTemplate = new DefaultListModel();
+		templateList = new JList();
+		dlmTemplate = new DefaultListModel();
 		templateList.setModel(dlmTemplate);
 		
-		final TemplateHolder templates = new TemplateHolder();
-		templates.setTemplate("product");
+		templates = new TemplateHolder();
+		//templates.setTemplate("product");
 		File templatesDir = new File("templates");
 		if (templatesDir.exists() && templatesDir.isDirectory())
 		{
-			Template template = new Template();
 			File[] files = templatesDir.listFiles();
-			for (int i = 0; i < files.length; i++) {
-				String fileString = readFile(files[i]);
+			for (int i = 0; i < files.length; i++)
+			{
+				Template template = new Template();
+				String fileString = MainGUI.readFile(files[i]);
+				System.out.println("file:"+fileString);
 				JsonReader jsonReader = Json.createReader(new StringReader(fileString));
 				JsonObject jo = jsonReader.readObject();
 				jsonReader.close();
 				template.setTo(jo);
+				template.panel = template.buildPanel(this);
 				templates.add(template);
-				dlmTemplate.addElement(template.name);
+				dlmTemplate.addElement(template.getTemplateName());
 			}
 		}
 		
@@ -1032,12 +1034,12 @@ public class Example
 			}
 		}
 		
-		final JFrame frame = new JFrame( "FileDrop" );
+		frame = new JFrame( "CMS" );
 		JPanel panel = new JPanel();
 		frame.getContentPane().add(panel, BorderLayout.CENTER);
 		//javax.swing.border.TitledBorder dragBorder = new javax.swing.border.TitledBorder( "Drop 'em" );
 		
-		final RegistryData workingRegistry = new RegistryData();
+		workingRegistry = new RegistryData();
 		
 		/* this is an example:
 		RegistryData rd = new RegistryData();
@@ -1056,7 +1058,7 @@ public class Example
 		System.out.println(sw.toString());
 		*/
 		
-		final JList products = new JList();
+		products = new JList();
 		DefaultListModel dlm = new DefaultListModel();
 		dlm.addElement("Not Connected");
 		products.setModel(dlm);
@@ -1067,7 +1069,7 @@ public class Example
 		loginPanel.setBorder(blackLine);
 		
 			JPanel sitePanel = new JPanel();
-			final JTextField ftpField = new JTextField(20);
+			ftpField = new JTextField(20);
 			ftpField.setSize(100, 30);
 			ftpField.setText(localConfig.site);
 			sitePanel.add(new JLabel("site:"), BorderLayout.NORTH);
@@ -1075,7 +1077,7 @@ public class Example
 			loginPanel.add(sitePanel, BorderLayout.NORTH);
 			
 			JPanel pathPanel = new JPanel();
-			final JTextField pathField = new JTextField(20);
+			pathField = new JTextField(20);
 			pathField.setSize(100, 30);
 			pathField.setText(localConfig.path);
 			pathPanel.add(new JLabel("path:"), BorderLayout.NORTH);
@@ -1083,7 +1085,7 @@ public class Example
 			loginPanel.add(pathPanel, BorderLayout.NORTH);
 			
 			JPanel unamePanel = new JPanel();
-			final JTextField textField = new JTextField(20);
+			textField = new JTextField(20);
 			textField.setSize(100, 30);
 			textField.setText(localConfig.user);
 			unamePanel.add(new JLabel("username:"), BorderLayout.NORTH);
@@ -1091,7 +1093,7 @@ public class Example
 			loginPanel.add(unamePanel, BorderLayout.NORTH);
 			
 			JPanel passPanel = new JPanel();
-			final JPasswordField passField = new JPasswordField(20);
+			passField = new JPasswordField(20);
 			passField.setSize(100, 30);
 			passPanel.add(new JLabel("password:"), BorderLayout.NORTH);
 			passPanel.add(passField, BorderLayout.NORTH);
@@ -1103,76 +1105,7 @@ public class Example
 				public void actionPerformed(ActionEvent actionE)
 				{
 					loginButton.setEnabled(false);
-					try
-					{
-						FTPClient ftp = new FTPClient();
-						ftp.connect(ftpField.getText());
-						ftp.login(textField.getText(), new String(passField.getPassword()));
-						int reply = ftp.getReplyCode();
-
-						if(!FTPReply.isPositiveCompletion(reply)) {
-							ftp.disconnect();
-							JOptionPane.showMessageDialog(frame, "Wrong password!");
-						}else
-						{
-							ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
-							ftp.changeWorkingDirectory(localConfig.path);
-							//ftp.setFileType(FTP.BINARY_FILE_TYPE);
-							ByteArrayOutputStream baos = new ByteArrayOutputStream();
-							FTPFile[] files = ftp.listFiles("registry.txt");
-							boolean writingNew = false;
-							if (files.length == 0)
-							{
-								writingNew = true;
-								JOptionPane.showMessageDialog(frame, "No registry!");
-							}else
-							{
-								ftp.retrieveFile("registry.txt", baos);
-								String retrievedFile = new String(baos.toByteArray(), "UTF-8");
-								
-								boolean worked = false;
-								try
-								{
-									JsonReader jsonReader = Json.createReader(new StringReader(retrievedFile));
-									JsonObject jo = jsonReader.readObject();
-									workingRegistry.setTo(jo);
-									worked = true;
-								}   // end try
-								catch( Exception except )
-								{
-									System.out.println(except.toString());
-								}
-								if (worked)
-								{
-									System.out.println("registry in-tact");
-									JOptionPane.showMessageDialog(frame, "Successfully logged in!");
-								}else
-								{
-									System.out.println("registry corrupted");
-									writingNew = true;
-									ftp.rename("registry.txt", "registry_corrupted_"+new Date().getTime()+".txt");
-									JOptionPane.showMessageDialog(frame, "Registry corrupt!");
-								}
-							}
-							if (writingNew)
-							{
-								System.out.println("no registry exists... writing");
-								StringWriter sw = new StringWriter();
-								JsonWriter jw = Json.createWriter(sw);
-								jw.write(workingRegistry.getJsonObjectBuilder().build());
-								InputStream is = new ByteArrayInputStream(sw.toString().getBytes());
-								ftp.storeFile("registry.txt", is);
-								JOptionPane.showMessageDialog(frame, "Writing new registry!");
-							}
-							ftp.logout();
-							ftp.disconnect();
-						}
-					}   // end try
-					catch( IOException except )
-					{
-						System.out.println(except.toString());
-						JOptionPane.showMessageDialog(frame, "Is your internet working?");
-					}
+					mainGUI.login();
 					loginButton.setEnabled(true);
 				}
 			});
@@ -1191,9 +1124,9 @@ public class Example
 		JScrollPane templatesScrollPane = new JScrollPane(templateList, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 		//productsScrollPanePanel.add(productsScrollPane);
 		//productsPanel.add(new JScrollPane(products), BorderLayout.CENTER);
-		final JButton newProductButton = new JButton("new product");
-		final JButton editProductButton = new JButton("edit product");
-		final JButton deleteProductButton = new JButton("delete product");
+		JButton newProductButton = new JButton("new product");
+		JButton editProductButton = new JButton("edit product");
+		JButton deleteProductButton = new JButton("delete product");
 		
 		GroupLayout playout = new GroupLayout(productsPanel);
 		productsPanel.setLayout(playout);
@@ -1238,143 +1171,39 @@ public class Example
 		templateList.addListSelectionListener(new ListSelectionListener() {
 			@Override
 			public void valueChanged(ListSelectionEvent arg0) {
-				if (!arg0.getValueIsAdjusting()) {
-					try
-					{
-						System.out.println(templateList.getSelectedValue());
-						refreshProductsList(products, workingRegistry, templateList.getSelectedValue().toString());
-						//dlmTemplate.clear();
-						templateList.clearSelection();
-					}catch(Exception e)
-					{
-						System.out.println(e.toString());
-						templateList.clearSelection();
-					}
+				if (!arg0.getValueIsAdjusting())
+				{
+					mainGUI.templateChange();
 				}
 			}
 		});
 		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		// this is the split between the top of the GUI and the bottom
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		JPanel productEdit = templates.getCurrentTemplate().buildPanel(frame, localConfig, ftpField, textField, passField, workingRegistry, products);
+		templatePanel = new JPanel();//templates.getCurrentTemplate().buildPanel(this);
 		
 		newProductButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent actionE)
 			{
-				newProductButton.setEnabled(false);
-				int dialogResult = JOptionPane.showConfirmDialog (frame, "This will clear all values below, continue?\n(This only erases changes before the last upload)", "Warning", JOptionPane.YES_NO_OPTION);
-				if (dialogResult == JOptionPane.YES_OPTION)
-				{
-					Object selectedValue = JOptionPane.showInputDialog(frame, "Enter product name:", "Input", JOptionPane.OK_CANCEL_OPTION);
-					String newProduct = ((String)selectedValue);
-					
-					String lastName = templates.getCurrentTemplate().getName();
-					
-					if (newProduct == null)
-					{
-						
-					}else
-					{
-						if (newProduct.length() == 0)
-						{
-							JOptionPane.showMessageDialog(frame, "Enter a product name!");
-						}else
-						{
-							if (workingRegistry.checkItemName(newProduct))
-							{
-								JOptionPane.showMessageDialog(frame, "An item with that name already exists!");
-							}else
-							{
-								ItemData id = new ItemData();
-								id.name = newProduct;
-								
-								templates.getCurrentTemplate().rename(newProduct);
-								templates.getCurrentTemplate().reset();
-								templates.getCurrentTemplate().setToDefault(id);
-								
-								workingRegistry.items.add(id);
-								
-								rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
-								refreshProductsList(products, workingRegistry, "product");
-								
-								JOptionPane.showMessageDialog(frame, "Item created: \""+newProduct+"\"");
-							}
-						}
-					}
-				}else
-				{
-					
-				}
-				newProductButton.setEnabled(true);
+				((JButton)actionE.getSource()).setEnabled(false);
+				mainGUI.newItem();
+				((JButton)actionE.getSource()).setEnabled(true);
 			}
 		});
 		editProductButton.addActionListener(new ActionListener()
 		{
 			public void actionPerformed(ActionEvent actionE)
 			{
-				editProductButton.setEnabled(false);
-				if (!products.isSelectionEmpty() && workingRegistry.checkItemName(products.getSelectedValue().toString()))
-				{
-					int dialogResult = JOptionPane.showConfirmDialog (frame, "This will change all values below, continue?\n(This only erases changes before the last upload)", "Warning", JOptionPane.YES_NO_OPTION);
-					if (dialogResult != JOptionPane.YES_OPTION)
-					{
-					}else
-					{
-						String name = products.getSelectedValue().toString();
-						ItemData id = workingRegistry.getItemWithName(name);
-						templates.getCurrentTemplate().setTo(frame, localConfig, ftpField, textField, passField, id);
-					}
-				}
-				editProductButton.setEnabled(true);
+				((JButton)actionE.getSource()).setEnabled(false);
+				mainGUI.editItem();
+				((JButton)actionE.getSource()).setEnabled(true);
 			}
 		});
 		deleteProductButton.addActionListener(new ActionListener()
 		{
 			public void actionPerformed(ActionEvent actionE)
 			{
-				deleteProductButton.setEnabled(false);
-				if (!products.isSelectionEmpty())
-				{
-					String name = products.getSelectedValue().toString();
-					if (workingRegistry.checkItemName(name))
-					{
-						int dialogResult = JOptionPane.showConfirmDialog (frame, "Are you sure you want to delete \""+name+"\"?", "Warning", JOptionPane.YES_NO_OPTION);
-						if (dialogResult != JOptionPane.YES_OPTION)
-						{
-						}else
-						{
-							workingRegistry.removeItemWithName(name);
-							rewriteRegistry(frame, localConfig, ftpField, textField, passField, workingRegistry);
-							refreshProductsList(products, workingRegistry, "product");
-							if (name.equals(templates.getCurrentTemplate().getName()))
-								templates.getCurrentTemplate().reset();
-							JOptionPane.showMessageDialog(frame, "\""+name+"\" deleted!");
-							
-						}
-					}else
-					{
-						
-					}
-				}
-				deleteProductButton.setEnabled(true);
+				((JButton)actionE.getSource()).setEnabled(false);
+				mainGUI.deleteItem();
+				((JButton)actionE.getSource()).setEnabled(true);
 			}
 		});
 		
@@ -1393,7 +1222,7 @@ public class Example
 						.addComponent(productsPanel)
 					)
 				)
-				.addComponent(productEdit)
+				.addComponent(templatePanel)
 			)
 		);
 		layout.setVerticalGroup(layout.createSequentialGroup()
@@ -1402,11 +1231,9 @@ public class Example
 				.addComponent(productsPanel)
 			)
 			.addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-				.addComponent(productEdit)
+				.addComponent(templatePanel)
 			)
 		);
-		
-		productEdit.setVisible(true);
 		
 		panel.add(loginPanel, BorderLayout.NORTH);
 		panel.add(productsPanel, BorderLayout.CENTER);
@@ -1415,5 +1242,226 @@ public class Example
 		frame.pack();
 		frame.setDefaultCloseOperation( frame.EXIT_ON_CLOSE );
 		frame.setVisible(true);
+	}
+	
+	public FTPClient getLogin()
+	{
+		try
+		{
+			FTPClient ftp = new FTPClient();
+			ftp.connect(ftpField.getText());
+			ftp.login(textField.getText(), new String(passField.getPassword()));
+			int reply = ftp.getReplyCode();
+			if(!FTPReply.isPositiveCompletion(reply))
+			{
+				ftp.disconnect();
+				JOptionPane.showMessageDialog(frame, "Wrong password or your localConf file is wrong!");
+				return null;
+			}else
+			{
+				return ftp;
+			}
+		}
+		catch( IOException except )
+		{
+			System.out.println(except.toString());
+			JOptionPane.showMessageDialog(frame, "Is your internet working?");
+			return null;
+		}
+	}
+	
+	public void login()
+	{
+		try
+		{
+			FTPClient ftp = this.getLogin();
+			if (ftp != null)
+			{
+				ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
+				ftp.changeWorkingDirectory(localConfig.path);
+				//ftp.setFileType(FTP.BINARY_FILE_TYPE);
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				FTPFile[] files = ftp.listFiles("registry.txt");
+				boolean writingNew = false;
+				if (files.length == 0)
+				{
+					writingNew = true;
+					JOptionPane.showMessageDialog(frame, "No registry!");
+				}else
+				{
+					ftp.retrieveFile("registry.txt", baos);
+					String retrievedFile = new String(baos.toByteArray(), "UTF-8");
+					
+					boolean worked = false;
+					try
+					{
+						JsonReader jsonReader = Json.createReader(new StringReader(retrievedFile));
+						JsonObject jo = jsonReader.readObject();
+						workingRegistry.setTo(jo);
+						worked = true;
+					}   // end try
+					catch( Exception except )
+					{
+						System.out.println(except.toString());
+					}
+					if (worked)
+					{
+						System.out.println("registry in-tact");
+						JOptionPane.showMessageDialog(frame, "Successfully logged in!");
+					}else
+					{
+						System.out.println("registry corrupted");
+						writingNew = true;
+						ftp.rename("registry.txt", "registry_corrupted_"+new Date().getTime()+".txt");
+						JOptionPane.showMessageDialog(frame, "Registry corrupt!");
+					}
+				}
+				if (writingNew)
+				{
+					System.out.println("no registry exists... writing");
+					StringWriter sw = new StringWriter();
+					JsonWriter jw = Json.createWriter(sw);
+					jw.write(workingRegistry.getJsonObjectBuilder().build());
+					InputStream is = new ByteArrayInputStream(sw.toString().getBytes());
+					ftp.storeFile("registry.txt", is);
+					JOptionPane.showMessageDialog(frame, "Writing new registry!");
+				}
+				ftp.logout();
+				ftp.disconnect();
+			}
+		}   // end try
+		catch( IOException except )
+		{
+			System.out.println(except.toString());
+			JOptionPane.showMessageDialog(frame, "Is your internet working?");
+		}
+	}
+	
+	public void templateChange()
+	{
+		if (templateList.getSelectedValue() == null)
+			System.out.println("bad template change (normal usually)");
+		else
+		{
+			try
+			{
+				System.out.println(templateList.getSelectedValue());
+				//templates.setTemplate(templateList.getSelectedValue().toString());
+				this.switchTemplate(templateList.getSelectedValue().toString());
+				this.refreshProductsList();
+				//dlmTemplate.clear();
+				templateList.clearSelection();
+			}catch(Exception e)
+			{
+				System.out.println(e.toString());
+				templateList.clearSelection();
+				throw e;
+			}
+		}
+	}
+	
+	public void newItem()
+	{
+		int dialogResult = JOptionPane.showConfirmDialog (frame, "This will clear all values below, continue?\n(This only erases changes before the last upload)", "Warning", JOptionPane.YES_NO_OPTION);
+		if (dialogResult == JOptionPane.YES_OPTION)
+		{
+			Object selectedValue = JOptionPane.showInputDialog(frame, "Enter product name:", "Input", JOptionPane.OK_CANCEL_OPTION);
+			String newProduct = ((String)selectedValue);
+			
+			String lastName = templates.getCurrentTemplate().getName();
+			
+			if (newProduct == null)
+			{
+				
+			}else
+			{
+				if (newProduct.length() == 0)
+				{
+					JOptionPane.showMessageDialog(frame, "Enter a product name!");
+				}else
+				{
+					if (workingRegistry.checkItemName(newProduct))
+					{
+						JOptionPane.showMessageDialog(frame, "An item with that name already exists!");
+					}else
+					{
+						ItemData id = new ItemData();
+						id.name = newProduct;
+						
+						templates.getCurrentTemplate().rename(newProduct);
+						templates.getCurrentTemplate().reset();
+						templates.getCurrentTemplate().setToDefault(id);
+						
+						workingRegistry.items.add(id);
+						
+						this.rewriteRegistry();
+						this.refreshProductsList();
+						
+						JOptionPane.showMessageDialog(frame, "Item created: \""+newProduct+"\"");
+					}
+				}
+			}
+		}else
+		{
+			
+		}
+	}
+	
+	public void deleteItem()
+	{
+		if (!products.isSelectionEmpty())
+		{
+			String name = products.getSelectedValue().toString();
+			if (workingRegistry.checkItemName(name))
+			{
+				int dialogResult = JOptionPane.showConfirmDialog (frame, "Are you sure you want to delete \""+name+"\"?", "Warning", JOptionPane.YES_NO_OPTION);
+				if (dialogResult != JOptionPane.YES_OPTION)
+				{
+				}else
+				{
+					workingRegistry.removeItemWithName(name);
+					this.rewriteRegistry();
+					this.refreshProductsList();
+					if (name.equals(templates.getCurrentTemplate().getName()))
+						templates.getCurrentTemplate().reset();
+					JOptionPane.showMessageDialog(frame, "\""+name+"\" deleted!");
+					
+				}
+			}else
+			{
+				
+			}
+		}
+	}
+	
+	public void editItem()
+	{
+		if (!products.isSelectionEmpty() && workingRegistry.checkItemName(products.getSelectedValue().toString()))
+		{
+			int dialogResult = JOptionPane.showConfirmDialog (frame, "This will change all values below, continue?\n(This only erases changes before the last upload)", "Warning", JOptionPane.YES_NO_OPTION);
+			if (dialogResult != JOptionPane.YES_OPTION)
+			{
+			}else
+			{
+				String name = products.getSelectedValue().toString();
+				ItemData id = workingRegistry.getItemWithName(name);
+				templates.getCurrentTemplate().setTo(this, id);
+			}
+		}
+	}
+}
+
+public class Example
+{
+	
+	/** Runs a sample program that shows dropped files */
+	public static void main( String[] args )
+	{
+		new MainGUI();
+	}
+	
+	public Example()
+	{
+		
 	}
 }

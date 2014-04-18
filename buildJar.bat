@@ -1,3 +1,4 @@
 call build.bat
-jar cvfm Example.jar Manifest.mf *.class
+cd build
+jar -cvfm CMS.jar ../Manifest.mf GenCMS/*.class
 pause
